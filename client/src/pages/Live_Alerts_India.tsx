@@ -557,6 +557,7 @@ const fetchMomentumAlerts = async () => {
 };
 
 // Function to fetch archived alerts from history API
+// Function to fetch archived alerts from history API
 const fetchArchivedAlerts = async () => {
   try {
     const response = await api.get("/alerts/history/india");
@@ -597,7 +598,11 @@ const fetchArchivedAlerts = async () => {
           strategy: alert.strategy || alert.type || "Momentum Riders (52-week High/Low, All-Time High/Low)",
           date: alert.date || new Date().toISOString().split('T')[0],
           timestamp: alert.timestamp || alert.created_at || new Date().toISOString(),
-          description: alert.description || `${cleanSymbol} triggered an alert.`,
+          // FIXED: Use detailed description when available
+          description: alert.description || 
+                      (alert.trigger 
+                        ? `${cleanSymbol} triggered a ${alert.trigger} momentum alert${alert.rsi ? ` with RSI ${typeof alert.rsi === 'number' ? alert.rsi.toFixed(2) : alert.rsi}` : ''}.`
+                        : `${cleanSymbol} triggered an alert.`),
           marketCap: alert.marketCap || "N/A",
           trigger: alert.trigger || "ALERT"
         };
@@ -2121,7 +2126,7 @@ const fetchArchivedAlerts = async () => {
                   className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 py-3 text-m text-black font-bold flex items-center justify-center"
                 >
                   <div className="flex items-center gap-2">
-                    Market Alerts
+                    Market Alerts (700+ Stocks)
                   </div>
                 </Button>
                 
@@ -2159,7 +2164,7 @@ const fetchArchivedAlerts = async () => {
                   className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 py-3 text-m text-black font-bold flex items-center justify-center"
                 >
                   <div className="flex items-center gap-2">
-                    Watchlist Alerts
+                    Watchlist Alerts (20)
                   </div>
                 </Button>
               </div>
