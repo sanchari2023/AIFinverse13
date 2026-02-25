@@ -9,6 +9,11 @@ import { usePremiumInterceptor } from "@/hooks/usePremiumInterceptor";
 
 import { polyfillCountryFlagEmojis } from "country-flag-emoji-polyfill";
 
+//ADMIN ARTICLES
+import AdminLogin from "./pages/admin/AdminLogin";
+import AdminEditor from "./pages/admin/AdminEditor";
+import ProtectedRoute from "./pages/admin/ProtectedRoute";
+
 // This will automatically inject a web font that 
 // contains the flags for Windows users
 polyfillCountryFlagEmojis();
@@ -37,6 +42,8 @@ import LiveAlertsWrapper_US from "./pages/LiveAlertsWrapper_US";
 import LiveAlertsWrapper_India from "./pages/LiveAlertsWrapper_India";
 
 import PrivacyPolicy from "@/pages/PrivacyPolicy";
+
+import PostDetail from "./pages/PostDetail";
 
 function Router() {
   usePremiumInterceptor();
@@ -71,6 +78,20 @@ function Router() {
       <Route path="/live-alerts-us" component={LiveAlertsWrapper_US} />
 
       <Route path="/privacy-policy" component={PrivacyPolicy} />
+
+      <Route path="/post/:id" component={PostDetail} />
+
+
+      {/* ADMIN ARTICLES */}
+
+      <Route path="/admin/login" component={AdminLogin} />
+
+<Route
+  path="/admin/create-post"
+  component={() => (
+    <ProtectedRoute component={AdminEditor} />
+  )}
+/>
 
       {/* FALLBACK */}
       <Route component={NotFound} />

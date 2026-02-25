@@ -162,38 +162,114 @@ export default function Live_Alerts_US() {
   };
 
   // ============================================
-  // FIXED: Helper function to split alerts into center and archive
-  // Center: MAX 10 alerts from TODAY only (newest first)
-  // Archive: All older alerts + excess today alerts beyond first 10
-  // ============================================
-  const splitAlertsIntoCenterAndArchive = (allAlerts: any[]) => {
-    const today = new Date().toISOString().split('T')[0];
-    
-    // Separate alerts by date
-    const todayAlerts = allAlerts.filter(alert => alert.date === today);
-    const olderAlerts = allAlerts.filter(alert => alert.date !== today);
-    
-    // Sort both arrays by timestamp (newest first)
-    const sortedTodayAlerts = [...todayAlerts].sort((a, b) => 
-      new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-    );
-    
-    const sortedOlderAlerts = [...olderAlerts].sort((a, b) => 
-      new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-    );
-    
-    // Center section: FIRST 10 of today's alerts (newest first)
-    const centerAlerts = sortedTodayAlerts.slice(0, 10);
-    
-    // Archive section: 
-    // 1. All older alerts (from previous dates)
-    // 2. PLUS any excess today alerts beyond the first 10
-    const excessTodayAlerts = sortedTodayAlerts.slice(10);
-    const archiveAlerts = [...sortedOlderAlerts, ...excessTodayAlerts];
-    
-    return { centerAlerts, archiveAlerts };
+// FIXED: Use UTC for date comparison to match backend
+// Center: MAX 10 alerts from TODAY only (newest first)
+// Archive: All older alerts + excess today alerts beyond first 10
+// ============================================
+const splitAlertsIntoCenterAndArchive = (allAlerts: any[]) => {
+  // Get UTC date
+  const now = new Date();
+  const todayUTC = new Date(Date.UTC(
+    now.getUTCFullYear(),
+    now.getUTCMonth(),
+    now.getUTCDate()
+  ));
+  const todayStr = todayUTC.toISOString().split('T')[0];
+  
+  console.log("========== DEBUG SPLIT FUNCTION ==========");
+  console.log("1. Current UTC date:", todayStr);
+  console.log("2. Total alerts received:", allAlerts.length);
+  
+  // Log ALL alerts with their dates
+  console.log("3. All alerts with dates:");
+  allAlerts.forEach((alert, index) => {
+    console.log(`   ${index + 1}. ${alert.stock} - date: ${alert.date} - timestamp: ${alert.timestamp}`);
+  });
+  
+  // Check what dates we have
+  const dates = allAlerts.map(a => a.date);
+  const uniqueDates = [...new Set(dates)];
+  console.log("4. Unique dates in alerts:", uniqueDates);
+  
+  // Separate by date
+  const todayAlerts = allAlerts.filter(alert => alert.date === todayStr);
+  const olderAlerts = allAlerts.filter(alert => alert.date !== todayStr);
+  
+  console.log("5. Today's alerts count:", todayAlerts.length);
+  console.log("6. Older alerts count:", olderAlerts.length);
+  
+  // Check for duplicates within todayAlerts
+  const seen = new Set();
+  const duplicates = [];
+  todayAlerts.forEach(alert => {
+    const key = `${alert.stock}-${alert.timestamp}`;
+    if (seen.has(key)) {
+      duplicates.push(alert);
+    }
+    seen.add(key);
+  });
+  
+  console.log("7. Duplicates found in todayAlerts:", duplicates.length);
+  if (duplicates.length > 0) {
+    console.log("   Duplicate examples:", duplicates.slice(0, 3).map(d => ({
+      stock: d.stock,
+      timestamp: d.timestamp,
+      time: d.time
+    })));
+  }
+  
+  // Sort and remove duplicates
+  const sortedTodayAlerts = [...todayAlerts].sort((a, b) => 
+    new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+  );
+  
+  // Manual duplicate removal
+  const uniqueTodayAlerts = [];
+  const seenKeys = new Set();
+  
+  for (const alert of sortedTodayAlerts) {
+    const key = `${alert.stock}-${alert.timestamp}`;
+    if (!seenKeys.has(key)) {
+      seenKeys.add(key);
+      uniqueTodayAlerts.push(alert);
+    } else {
+      console.log(`   🗑️ Removing duplicate: ${alert.stock} at ${alert.time}`);
+    }
+  }
+  
+  console.log("8. Unique today alerts after dedupe:", uniqueTodayAlerts.length);
+  
+  const centerAlerts = uniqueTodayAlerts.slice(0, 10);
+  const excessTodayAlerts = uniqueTodayAlerts.slice(10);
+  
+  console.log("9. Center alerts (first 10):", centerAlerts.length);
+  console.log("10. Excess today alerts:", excessTodayAlerts.length);
+  console.log("==========================================");
+  
+  return { 
+    centerAlerts, 
+    archiveAlerts: [...olderAlerts, ...excessTodayAlerts] 
   };
+};
 
+// Add this helper function RIGHT AFTER the splitAlertsIntoCenterAndArchive function
+// Helper function to remove duplicates
+const removeDuplicates = (alerts: any[]) => {
+  const seen = new Set();
+  return alerts.filter(alert => {
+    // Create a unique key using stock and timestamp (rounded to minute)
+    const timestamp = new Date(alert.timestamp || 0);
+    timestamp.setSeconds(0, 0); // Round to nearest minute
+    const key = `${alert.stock}-${timestamp.getTime()}`;
+    
+    if (seen.has(key)) {
+      console.log("🔄 Duplicate found and removed:", alert.stock, alert.time);
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
+};
   // Handle adding stocks
   const handleAddStocks = async () => {
     try {
@@ -1127,14 +1203,15 @@ export default function Live_Alerts_US() {
 
   // Format date for archive display (Thu 12/2/2026)
   const formatArchiveDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-      weekday: 'short', 
-      month: 'numeric', 
-      day: 'numeric', 
-      year: 'numeric' 
-    });
-  };
+  const date = new Date(dateString + 'T00:00:00Z'); // Parse as UTC
+  return date.toLocaleDateString('en-US', { 
+    timeZone: 'UTC',
+    weekday: 'short', 
+    month: 'numeric', 
+    day: 'numeric', 
+    year: 'numeric' 
+  });
+};
 
   // Handle clicking on archive date
   const handleArchiveDateClick = (date: string, alerts: any[]) => {
@@ -1563,15 +1640,16 @@ export default function Live_Alerts_US() {
                     </span>
                   )}
                 </div>
-                <div className="text-xs text-slate-400">
-                  {new Date().toLocaleDateString('en-US', { 
-                    weekday: 'short', 
-                    month: 'short', 
-                    day: 'numeric', 
-                    year: 'numeric' 
-                  })}
-                </div>
-              </div>
+               <div className="text-xs text-slate-400">
+  {new Date().toLocaleDateString('en-US', { 
+    timeZone: 'UTC',
+    weekday: 'short', 
+    month: 'short', 
+    day: 'numeric', 
+    year: 'numeric'
+  })} 
+</div>
+    </div>
 
               {watchlist.length === 0 ? (
                 <div className="text-center py-10">
