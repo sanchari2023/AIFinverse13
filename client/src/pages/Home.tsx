@@ -343,6 +343,7 @@ export default function Home() {
     };
 
     // Load Nasdaq Heatmap
+        // Load Nasdaq Heatmap
     const loadNasdaqHeatmap = () => {
       const script = document.createElement('script');
       script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-stock-heatmap.js';
@@ -367,6 +368,7 @@ export default function Home() {
       
       const container = document.getElementById('tradingview-nasdaq-heatmap-container');
       if (container) {
+        container.innerHTML = ''; // Clear any existing content
         container.appendChild(script);
       }
     };
@@ -396,10 +398,11 @@ export default function Home() {
       
       const container = document.getElementById('tradingview-sensex-heatmap-container');
       if (container) {
+        container.innerHTML = ''; // Clear any existing content
         container.appendChild(script);
       }
     };
-
+    
     // Load Nasdaq Chart
     const loadNasdaqChart = () => {
       const script = document.createElement('script');
@@ -619,7 +622,7 @@ export default function Home() {
         </section>
 
         
-        {/* STOCK HEATMAPS SECTION */}
+                {/* STOCK HEATMAPS SECTION */}
         <section className="mb-20">
           <div className="text-center mb-10">
             <div className="inline-flex items-center gap-2 mb-3">
@@ -631,26 +634,26 @@ export default function Home() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="space-y-8">
             {/* NASDAQ 100 Heatmap */}
-            <div className="bg-gradient-to-br from-slate-800/80 to-slate-900/80 border border-slate-700 rounded-2xl p-6 backdrop-blur-sm hover:border-blue-500/30 transition-all duration-300">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 bg-gradient-to-br from-blue-500/20 to-cyan-500/20 rounded-xl flex items-center justify-center">
-                  <span className="text-2xl">🔥</span>
+            <div className="bg-gradient-to-br from-slate-800/80 to-slate-900/80 border border-slate-700 rounded-2xl p-4 sm:p-6 backdrop-blur-sm hover:border-blue-500/30 transition-all duration-300">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-500/20 to-cyan-500/20 rounded-xl flex items-center justify-center">
+                  <span className="text-xl">🔥</span>
                 </div>
                 <div>
-                  <h3 className="text-white font-semibold text-lg">NASDAQ 100 Heatmap</h3>
-                  <p className="text-blue-400 text-sm">Tech & Growth Stocks</p>
+                  <h3 className="text-white font-semibold text-base sm:text-lg">NASDAQ 100 Heatmap</h3>
+                  <p className="text-blue-400 text-xs sm:text-sm">Tech & Growth Stocks</p>
                 </div>
               </div>
-              <div className="h-80 rounded-xl overflow-hidden">
-                <div className="tradingview-widget-container" style={{ height: "100%" }}>
-                  <div id="tradingview-nasdaq-heatmap-container" style={{ height: "calc(100% - 32px)" }}>
-                    <div className="tradingview-widget-container__widget"></div>
+              <div className="h-[400px] sm:h-[450px] md:h-[500px] rounded-xl overflow-hidden">
+                <div className="tradingview-widget-container w-full h-full">
+                  <div id="tradingview-nasdaq-heatmap-container" className="w-full h-full">
+                    <div className="tradingview-widget-container__widget w-full h-full"></div>
                   </div>
-                  <div className="tradingview-widget-copyright">
-                    <a href="https://www.tradingview.com/heatmap/stock/" rel="noopener nofollow" target="_blank">
-                      <span className="text-cyan-400">Stock Heatmap</span>
+                  <div className="tradingview-widget-copyright text-xs mt-1">
+                    <a href="https://www.tradingview.com/heatmap/stock/" rel="noopener nofollow" target="_blank" className="text-cyan-400">
+                      Stock Heatmap
                     </a>
                     <span className="text-gray-400"> by TradingView</span>
                   </div>
@@ -659,24 +662,24 @@ export default function Home() {
             </div>
 
             {/* SENSEX Heatmap */}
-            <div className="bg-gradient-to-br from-slate-800/80 to-slate-900/80 border border-slate-700 rounded-2xl p-6 backdrop-blur-sm hover:border-orange-500/30 transition-all duration-300">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 bg-gradient-to-br from-orange-500/20 to-amber-500/20 rounded-xl flex items-center justify-center">
-                  <span className="text-2xl">🔥</span>
+            <div className="bg-gradient-to-br from-slate-800/80 to-slate-900/80 border border-slate-700 rounded-2xl p-4 sm:p-6 backdrop-blur-sm hover:border-orange-500/30 transition-all duration-300">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 bg-gradient-to-br from-orange-500/20 to-amber-500/20 rounded-xl flex items-center justify-center">
+                  <span className="text-xl">🔥</span>
                 </div>
                 <div>
-                  <h3 className="text-white font-semibold text-lg">SENSEX Heatmap</h3>
-                  <p className="text-orange-400 text-sm">Indian Market Leaders</p>
+                  <h3 className="text-white font-semibold text-base sm:text-lg">SENSEX Heatmap</h3>
+                  <p className="text-orange-400 text-xs sm:text-sm">Indian Market Leaders</p>
                 </div>
               </div>
-              <div className="h-80 rounded-xl overflow-hidden">
-                <div className="tradingview-widget-container" style={{ height: "100%" }}>
-                  <div id="tradingview-sensex-heatmap-container" style={{ height: "calc(100% - 32px)" }}>
-                    <div className="tradingview-widget-container__widget"></div>
+              <div className="h-[400px] sm:h-[450px] md:h-[500px] rounded-xl overflow-hidden">
+                <div className="tradingview-widget-container w-full h-full">
+                  <div id="tradingview-sensex-heatmap-container" className="w-full h-full">
+                    <div className="tradingview-widget-container__widget w-full h-full"></div>
                   </div>
-                  <div className="tradingview-widget-copyright">
-                    <a href="https://www.tradingview.com/heatmap/stock/" rel="noopener nofollow" target="_blank">
-                      <span className="text-cyan-400">Stock Heatmap</span>
+                  <div className="tradingview-widget-copyright text-xs mt-1">
+                    <a href="https://www.tradingview.com/heatmap/stock/" rel="noopener nofollow" target="_blank" className="text-cyan-400">
+                      Stock Heatmap
                     </a>
                     <span className="text-gray-400"> by TradingView</span>
                   </div>
@@ -685,6 +688,7 @@ export default function Home() {
             </div>
           </div>
         </section>
+       
 
         
             
