@@ -23,6 +23,21 @@ import {
   Clock
 } from "lucide-react";
 
+
+// Add this right after your imports
+const preloadedData = (() => {
+  try {
+    const cached = sessionStorage.getItem('india_alerts_cache'); // or 'us_alerts_cache'
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (parsed.timestamp && (Date.now() - parsed.timestamp < 120000)) {
+        return parsed;
+      }
+    }
+  } catch (e) {}
+  return null;
+})();
+
 // Define interfaces
 interface Company {
   company_name: string;
@@ -35,14 +50,14 @@ interface WatchlistItem {
 }
 
 export default function Live_Alerts_India() {
-  const [selectedAlertTypes, setSelectedAlertTypes] = useState<string[]>([]);
+  const [selectedAlertTypes, setSelectedAlertTypes] = useState<string[]>(preloadedData?.strategies || []);
   const [chatOpen, setChatOpen] = useState(false);
   const [showAddStrategies, setShowAddStrategies] = useState(false);
   const [selectedNewStrategies, setSelectedNewStrategies] = useState<string[]>([]);
   const [isRemoving, setIsRemoving] = useState<string | null>(null);
   const [expandedAlertIndex, setExpandedAlertIndex] = useState<number | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
+  const [isLoading, setIsLoading] = useState(!preloadedData); // Only loading if no cache
+  const [watchlist, setWatchlist] = useState<WatchlistItem[]>(preloadedData?.watchlist || []);
   const [searchAlertQuery, setSearchAlertQuery] = useState("");
   
   // User market and strategies from registration
@@ -60,12 +75,12 @@ export default function Live_Alerts_India() {
   const [, setLocation] = useLocation();
 
   // States for dynamic alerts
-  const [alertsData, setAlertsData] = useState<any[]>([]); // Combined alerts data (ONLY 10 LATEST TODAY'S ALERTS)
-  const [archivedAlerts, setArchivedAlerts] = useState<any[]>([]);
+  const [alertsData, setAlertsData] = useState<any[]>(preloadedData?.centerAlerts || []);
+  const [archivedAlerts, setArchivedAlerts] = useState<any[]>(preloadedData?.archivedGroups || []);
   const [expandedArchivedAlert, setExpandedArchivedAlert] = useState<number | null>(null);
   
   // NEW STATE to store ALL today's alerts
-  const [allTodayAlerts, setAllTodayAlerts] = useState<any[]>([]);
+  const [allTodayAlerts, setAllTodayAlerts] = useState<any[]>(preloadedData?.allToday || []);
   
   // NEW STATES for archived alerts pagination
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -78,6 +93,17 @@ export default function Live_Alerts_India() {
   
   // Add this state for filtered archive groups
   const [filteredArchiveGroups, setFilteredArchiveGroups] = useState<any[]>([]);
+
+  // Add this at the very top of your component (after useState declarations)
+const [cachedData, setCachedData] = useState(() => {
+  const saved = sessionStorage.getItem('india_alerts_cache'); // or 'us_alerts_cache'
+  if (saved) {
+    try {
+      return JSON.parse(saved); // Just return it, timestamp check happens in useEffect
+    } catch (e) {}
+  }
+  return null;
+});
 
   // 🔒 Registration check (simple & safe)
   const isRegistered = !!localStorage.getItem("userProfile");
@@ -153,6 +179,41 @@ export default function Live_Alerts_India() {
     }
   }, [searchAlertQuery, indiaStocks, showStockList]);
 
+
+  // Add this with your other useEffects (around line 80-90)
+useEffect(() => {
+  // Preload critical data as soon as component mounts
+  const preloadData = async () => {
+    try {
+      const userProfile = localStorage.getItem("userProfile");
+      if (!userProfile) return;
+      
+      const profile = JSON.parse(userProfile);
+      const userId = profile.userId;
+      
+      if (userId) {
+        // Start loading data immediately (don't wait for result)
+        Promise.all([
+          api.get(`/users/${userId}`).catch(() => null),
+          api.get("/alerts/live/india").catch(() => null),
+          api.get("/alerts/history/india").catch(() => null)
+        ]).then(([userData, liveAlerts, historyAlerts]) => {
+          // Store in sessionStorage for quick access
+          if (userData?.data) {
+            sessionStorage.setItem('india_user_preload', JSON.stringify(userData.data));
+          }
+        });
+      }
+    } catch (error) {
+      // Silently fail - this is just preloading
+    }
+  };
+  
+  preloadData();
+}, []);
+
+
+
   // Toggle stock selection in modal
   const toggleStockSelection = (companyName: string) => {
     setSelectedStocks(prev =>
@@ -177,28 +238,24 @@ const splitAlertsIntoCenterAndArchive = (allAlerts: any[]) => {
   // Get IST date string (YYYY-MM-DD)
   const todayIST = istTime.toISOString().split('T')[0];
   
-  console.log("========== DEBUG SPLIT FUNCTION (IST) ==========");
-  console.log("1. Current IST date:", todayIST);
-  console.log("2. Current UTC date:", now.toISOString().split('T')[0]);
-  console.log("3. Total alerts received:", allAlerts.length);
+  
   
   // Log ALL alerts with their dates
-  console.log("4. All alerts with dates:");
+  
   allAlerts.forEach((alert, index) => {
-    console.log(`   ${index + 1}. ${alert.stock} - date: ${alert.date} - timestamp: ${alert.timestamp}`);
+    
   });
   
   // Check what dates we have
   const dates = allAlerts.map(a => a.date);
   const uniqueDates = [...new Set(dates)];
-  console.log("5. Unique dates in alerts:", uniqueDates);
+  
   
   // Separate by date (compare with IST date)
   const todayAlerts = allAlerts.filter(alert => alert.date === todayIST);
   const olderAlerts = allAlerts.filter(alert => alert.date !== todayIST);
   
-  console.log("6. Today's alerts (IST):", todayAlerts.length);
-  console.log("7. Older alerts:", olderAlerts.length);
+  
   
   // Check for duplicates within todayAlerts
   const seen = new Set();
@@ -211,7 +268,7 @@ const splitAlertsIntoCenterAndArchive = (allAlerts: any[]) => {
     seen.add(key);
   });
   
-  console.log("8. Duplicates found in todayAlerts:", duplicates.length);
+  
   if (duplicates.length > 0) {
     console.log("   Duplicate examples:", duplicates.slice(0, 3).map(d => ({
       stock: d.stock,
@@ -239,14 +296,12 @@ const splitAlertsIntoCenterAndArchive = (allAlerts: any[]) => {
     }
   }
   
-  console.log("9. Unique today alerts after dedupe:", uniqueTodayAlerts.length);
+  
   
   const centerAlerts = uniqueTodayAlerts.slice(0, 10);
   const excessTodayAlerts = uniqueTodayAlerts.slice(10);
   
-  console.log("10. Center alerts (first 10):", centerAlerts.length);
-  console.log("11. Excess today alerts:", excessTodayAlerts.length);
-  console.log("==========================================");
+  
   
   return { 
     centerAlerts, 
@@ -265,7 +320,7 @@ const splitAlertsIntoCenterAndArchive = (allAlerts: any[]) => {
       const key = `${alert.stock}-${timestamp.getTime()}`;
       
       if (seen.has(key)) {
-        console.log("🔄 Duplicate found and removed:", alert.stock, alert.time);
+        
         return false;
       }
       seen.add(key);
@@ -335,9 +390,12 @@ const splitAlertsIntoCenterAndArchive = (allAlerts: any[]) => {
       // AFTER adding stocks, refresh BOTH archive AND live alerts with the new watchlist
       const watchlistSymbols = updatedWatchlist.map(item => item.base_symbol);
       
-      // 1. Fetch all alerts (live + archived)
-      const momentumAlertsData = await fetchMomentumAlerts();
-      const archivedAlertsData = await fetchArchivedAlerts();
+      
+      // Fetch ALL alerts in PARALLEL
+const [momentumAlertsData, archivedAlertsData] = await Promise.all([
+  fetchMomentumAlerts(),
+  fetchArchivedAlerts()
+]);
       
       // 2. Filter only watchlist stocks
       const watchlistLiveAlerts = momentumAlertsData.filter(alert => 
@@ -396,7 +454,7 @@ const splitAlertsIntoCenterAndArchive = (allAlerts: any[]) => {
         
         if (userData.watchlist && userData.watchlist.India) {
           setWatchlist(userData.watchlist.India);
-          console.log("✅ India Watchlist refreshed from backend:", userData.watchlist.India.length, "items");
+          
           
           // Also refresh archive alerts with new watchlist
           const watchlistSymbols = userData.watchlist.India.map((item: WatchlistItem) => item.base_symbol);
@@ -686,7 +744,7 @@ const splitAlertsIntoCenterAndArchive = (allAlerts: any[]) => {
   const fetchMomentumAlerts = async () => {
     try {
       const momentumResponse = await api.get("/alerts/live/india");
-      console.log("✅ Momentum API called successfully");
+      
       
       if (momentumResponse.data && Array.isArray(momentumResponse.data.alerts)) {
         return momentumResponse.data.alerts.map((alert: any) => {
@@ -728,7 +786,7 @@ const splitAlertsIntoCenterAndArchive = (allAlerts: any[]) => {
   const fetchArchivedAlerts = async () => {
     try {
       const response = await api.get("/alerts/history/india");
-      console.log("✅ Archived alerts API called successfully", response.data);
+      
       
       // Handle different possible response structures
       let alertsArray = [];
@@ -815,160 +873,106 @@ const splitAlertsIntoCenterAndArchive = (allAlerts: any[]) => {
   // MAIN LOAD FUNCTION - Load watchlist and alerts
   // ============================================
   useEffect(() => {
-    const loadUserPreferences = async () => {
-      try {
-        console.log("=== LOADING INDIA PREFERENCES ===");
+  const loadUserPreferences = async () => {
+    try {
+      // 🔥 Check cache first
+      if (cachedData) {
         
-        const userProfile = localStorage.getItem("userProfile");
-        if (!userProfile) {
-          setIsLoading(false);
-          return;
-        }
-        
-        const profile = JSON.parse(userProfile);
-        const userEmail = profile.email || localStorage.getItem("userEmail");
-        
-        if (!userEmail) {
-          console.error("No user email found");
-          setIsLoading(false);
-          return;
-        }
-        
-        const savedMarket = localStorage.getItem('selectedMarket') || profile.selectedMarket || "India";
-        setUserMarket(savedMarket);
-        
-        const userId = profile.userId || profile.user_id || localStorage.getItem("userId");
-        
-        // Load watchlist first
-        let userWatchlist: WatchlistItem[] = [];
-        if (userId) {
-          try {
-            const response = await api.get(`/users/${userId}`);
-            const userData = response.data;
-            
-            if (userData.watchlist && userData.watchlist.India) {
-              userWatchlist = userData.watchlist.India;
-              setWatchlist(userWatchlist);
-              console.log("✅ India watchlist loaded:", userWatchlist.length, "items");
-            }
-          } catch (error) {
-            console.error("Error loading watchlist:", error);
-          }
-        }
-        
-        let indiaStrategies: string[] = [];
-        
-        if (userId) {
-          try {
-            const response = await api.get(`/users/${userId}`);
-            const userData = response.data;
-            
-            console.log("Backend user data:", userData);
+        setWatchlist(cachedData.watchlist || []);
+        setAlertsData(cachedData.centerAlerts || []);
+        setArchivedAlerts(cachedData.archivedGroups || []);
+        setAllTodayAlerts(cachedData.allToday || []);
+        setSelectedAlertTypes(cachedData.strategies || []);
+        setIsLoading(false);
+        return; // ⭐ SKIP all API calls!
+      }
+      
+      
+      
+      const userProfile = localStorage.getItem("userProfile");
+      if (!userProfile) {
+        setIsLoading(false);
+        return;
+      }
+      
+      const profile = JSON.parse(userProfile);
+      const userEmail = profile.email || localStorage.getItem("userEmail");
+      
+      if (!userEmail) {
+        console.error("No user email found");
+        setIsLoading(false);
+        return;
+      }
+      
+      const savedMarket = localStorage.getItem('selectedMarket') || profile.selectedMarket || "India";
+      setUserMarket(savedMarket);
+      
+      const userId = profile.userId || profile.user_id || localStorage.getItem("userId");
+      
+      
+      // Load ALL data in PARALLEL
+let userWatchlist: WatchlistItem[] = [];
+let momentumAlertsData: any[] = [];
+let archivedAlertsData: any[] = [];
+let userData: any = null;
 
-            const hasIndiaAccess = userData?.market_preferences?.India?.is_active || 
-                                userData?.india_alerts?.is_active || 
-                                savedMarket === "India" || 
-                                savedMarket === "Both";
+if (userId) {
+  try {
+    // Run all API calls simultaneously
+    const [userResponse, momentumResponse, archivedResponse] = await Promise.all([
+      api.get(`/users/${userId}`).catch(() => ({ data: null })),
+      fetchMomentumAlerts().catch(() => []),
+      fetchArchivedAlerts().catch(() => [])
+    ]);
+    
+    userData = userResponse.data;
+    momentumAlertsData = momentumResponse;
+    archivedAlertsData = archivedResponse;
+    
+    if (userData?.watchlist?.India) {
+      userWatchlist = userData.watchlist.India;
+      setWatchlist(userWatchlist);
+      console.log("✅ India watchlist loaded:", userWatchlist.length, "items");
+    }
+  } catch (error) {
+    console.error("Error loading data:", error);
+  }
+}
+      
+      let indiaStrategies: string[] = [];
+      let centerAlerts: any[] = [];
+      let groupedArray: any[] = [];
+      let watchlistLiveAlerts: any[] = [];
+      
+      if (userId) {
+        try {
+          const hasIndiaAccess = userData?.market_preferences?.India?.is_active || 
+                              userData?.india_alerts?.is_active || 
+                              savedMarket === "India" || 
+                              savedMarket === "Both";
 
-            if (!hasIndiaAccess) {
-              setMarketMismatch(true);
-              setTimeout(() => {
-                setShowMarketRedirect(true);
-              }, 1000);
-              setIsLoading(false);
-              return;
-            }
-            
-            if (userData.india_alerts && userData.india_alerts.strategies) {
-              indiaStrategies = userData.india_alerts.strategies;
-              
-              if (Array.isArray(indiaStrategies)) {
-                console.log("India strategies from backend:", indiaStrategies);
-                
-                localStorage.setItem("alertPreferencesIndia", JSON.stringify(indiaStrategies));
-                setSelectedAlertTypes(indiaStrategies);
-                
-                // Get watchlist symbols
-                const watchlistSymbols = userWatchlist.map(item => item.base_symbol);
-                
-                // If no watchlist stocks, show empty
-                if (watchlistSymbols.length === 0) {
-                  setAlertsData([]);
-                  setArchivedAlerts([]);
-                  setIsLoading(false);
-                  return;
-                }
-                
-                // Fetch ALL alerts
-                const momentumAlertsData = await fetchMomentumAlerts();
-                const archivedAlertsData = await fetchArchivedAlerts();
-                
-                console.log("📦 Raw live alerts data:", momentumAlertsData.length);
-                console.log("📦 Raw archived alerts data:", archivedAlertsData.length);
-                
-                // Filter only watchlist stocks
-                const watchlistLiveAlerts = momentumAlertsData.filter(alert => 
-                  watchlistSymbols.includes(alert.stock)
-                );
-                
-                const watchlistArchived = archivedAlertsData.filter(alert => 
-                  watchlistSymbols.includes(alert.stock)
-                );
-                
-                console.log("🔍 Filtered watchlist live alerts:", watchlistLiveAlerts.length);
-                console.log("🔍 Filtered watchlist archived alerts:", watchlistArchived.length);
-                
-                // Combine all alerts
-                const allAlerts = [...watchlistLiveAlerts, ...watchlistArchived];
-                
-                // Split into center and archive (USING UPDATED FUNCTION)
-                const { centerAlerts, archiveAlerts } = splitAlertsIntoCenterAndArchive(allAlerts);
-                
-                // Group archive alerts by date
-                const groupedByDate = archiveAlerts.reduce((groups: any, alert) => {
-                  const date = alert.date;
-                  if (!groups[date]) {
-                    groups[date] = [];
-                  }
-                  groups[date].push(alert);
-                  return groups;
-                }, {});
-                
-                // Convert to array and sort by date
-                const groupedArray = Object.entries(groupedByDate)
-                  .map(([date, alerts]) => ({ 
-                    date, 
-                    alerts: (alerts as any[]).sort((a, b) => 
-                      new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-                    )
-                  }))
-                  .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-                
-                setAlertsData(centerAlerts);
-                setArchivedAlerts(groupedArray);
-                setAllTodayAlerts(watchlistLiveAlerts); // Store all live alerts for future use
-                
-                setIsLoading(false);
-                return;
-              }
-            }
-          } catch (backendError) {
-            console.log("Backend fetch failed:", backendError);
+          if (!hasIndiaAccess) {
+            setMarketMismatch(true);
+            setTimeout(() => {
+              setShowMarketRedirect(true);
+            }, 1000);
+            setIsLoading(false);
+            return;
           }
-        }
-        
-        // Fallback to localStorage if backend fails
-        const savedIndiaPrefs = localStorage.getItem("alertPreferencesIndia");
-        
-        if (savedIndiaPrefs) {
-          try {
-            const parsed = JSON.parse(savedIndiaPrefs);
-            if (Array.isArray(parsed)) {
-              indiaStrategies = parsed;
-              setSelectedAlertTypes(parsed);
+          
+          if (userData.india_alerts && userData.india_alerts.strategies) {
+            indiaStrategies = userData.india_alerts.strategies;
+            
+            if (Array.isArray(indiaStrategies)) {
               
+              
+              localStorage.setItem("alertPreferencesIndia", JSON.stringify(indiaStrategies));
+              setSelectedAlertTypes(indiaStrategies);
+              
+              // Get watchlist symbols
               const watchlistSymbols = userWatchlist.map(item => item.base_symbol);
               
+              // If no watchlist stocks, show empty
               if (watchlistSymbols.length === 0) {
                 setAlertsData([]);
                 setArchivedAlerts([]);
@@ -976,17 +980,29 @@ const splitAlertsIntoCenterAndArchive = (allAlerts: any[]) => {
                 return;
               }
               
-              // Use hardcoded alerts as fallback
-              const filteredAlerts = hardcodedAlerts.filter(alert => 
-                parsed.includes(alert.type)
-              );
+              // Fetch ALL alerts
+              const momentumAlertsData = await fetchMomentumAlerts();
+              const archivedAlertsData = await fetchArchivedAlerts();
               
-              const watchlistOnlyAlerts = filteredAlerts.filter(alert => 
+              
+              
+              // Filter only watchlist stocks
+              watchlistLiveAlerts = momentumAlertsData.filter(alert => 
                 watchlistSymbols.includes(alert.stock)
               );
               
-              // Split into center and archive (USING UPDATED FUNCTION)
-              const { centerAlerts, archiveAlerts } = splitAlertsIntoCenterAndArchive(watchlistOnlyAlerts);
+              const watchlistArchived = archivedAlertsData.filter(alert => 
+                watchlistSymbols.includes(alert.stock)
+              );
+              
+              
+              
+              // Combine all alerts
+              const allAlerts = [...watchlistLiveAlerts, ...watchlistArchived];
+              
+              // Split into center and archive
+              const { centerAlerts: center, archiveAlerts } = splitAlertsIntoCenterAndArchive(allAlerts);
+              centerAlerts = center;
               
               // Group archive alerts by date
               const groupedByDate = archiveAlerts.reduce((groups: any, alert) => {
@@ -998,66 +1014,175 @@ const splitAlertsIntoCenterAndArchive = (allAlerts: any[]) => {
                 return groups;
               }, {});
               
-              const groupedArray = Object.entries(groupedByDate)
-                .map(([date, alerts]) => ({ date, alerts }))
+              // Convert to array and sort by date
+              groupedArray = Object.entries(groupedByDate)
+                .map(([date, alerts]) => ({ 
+                  date, 
+                  alerts: (alerts as any[]).sort((a, b) => 
+                    new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+                  )
+                }))
                 .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
               
               setAlertsData(centerAlerts);
               setArchivedAlerts(groupedArray);
+              setAllTodayAlerts(watchlistLiveAlerts);
+              
+              // ✅ SAVE TO CACHE - AFTER all data is ready
+              const dataToCache = {
+                watchlist: userWatchlist,
+                centerAlerts: centerAlerts,
+                archivedGroups: groupedArray,
+                allToday: watchlistLiveAlerts,
+                strategies: indiaStrategies,
+                timestamp: Date.now()
+              };
+              
+              sessionStorage.setItem('india_alerts_cache', JSON.stringify(dataToCache));
+              setCachedData(dataToCache);
               
               setIsLoading(false);
               return;
             }
-          } catch (error) {
-            console.error("Error parsing localStorage:", error);
           }
+        } catch (backendError) {
+          
         }
-        
-        // Default fallback
-        const watchlistSymbols = userWatchlist.map(item => item.base_symbol);
-        
-        if (watchlistSymbols.length === 0) {
-          setAlertsData([]);
-          setArchivedAlerts([]);
-          setIsLoading(false);
-          return;
-        }
-        
-        const watchlistOnlyAlerts = hardcodedAlerts.filter(alert => 
-          watchlistSymbols.includes(alert.stock)
-        );
-        
-        // Split into center and archive (USING UPDATED FUNCTION)
-        const { centerAlerts, archiveAlerts } = splitAlertsIntoCenterAndArchive(watchlistOnlyAlerts);
-        
-        // Group archive alerts by date
-        const groupedByDate = archiveAlerts.reduce((groups: any, alert) => {
-          const date = alert.date;
-          if (!groups[date]) {
-            groups[date] = [];
+      }
+      
+      // Fallback to localStorage if backend fails
+      const savedIndiaPrefs = localStorage.getItem("alertPreferencesIndia");
+      
+      if (savedIndiaPrefs) {
+        try {
+          const parsed = JSON.parse(savedIndiaPrefs);
+          if (Array.isArray(parsed)) {
+            indiaStrategies = parsed;
+            setSelectedAlertTypes(parsed);
+            
+            const watchlistSymbols = userWatchlist.map(item => item.base_symbol);
+            
+            if (watchlistSymbols.length === 0) {
+              setAlertsData([]);
+              setArchivedAlerts([]);
+              setIsLoading(false);
+              return;
+            }
+            
+            // Use hardcoded alerts as fallback
+            const filteredAlerts = hardcodedAlerts.filter(alert => 
+              parsed.includes(alert.type)
+            );
+            
+            const watchlistOnlyAlerts = filteredAlerts.filter(alert => 
+              watchlistSymbols.includes(alert.stock)
+            );
+            
+            // Split into center and archive
+            const { centerAlerts: center, archiveAlerts } = splitAlertsIntoCenterAndArchive(watchlistOnlyAlerts);
+            centerAlerts = center;
+            
+            // Group archive alerts by date
+            const groupedByDate = archiveAlerts.reduce((groups: any, alert) => {
+              const date = alert.date;
+              if (!groups[date]) {
+                groups[date] = [];
+              }
+              groups[date].push(alert);
+              return groups;
+            }, {});
+            
+            groupedArray = Object.entries(groupedByDate)
+              .map(([date, alerts]) => ({ date, alerts }))
+              .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+            
+            setAlertsData(centerAlerts);
+            setArchivedAlerts(groupedArray);
+            
+            // ✅ SAVE TO CACHE
+            const dataToCache = {
+              watchlist: userWatchlist,
+              centerAlerts: centerAlerts,
+              archivedGroups: groupedArray,
+              allToday: watchlistOnlyAlerts,
+              strategies: indiaStrategies,
+              timestamp: Date.now()
+            };
+            
+            sessionStorage.setItem('india_alerts_cache', JSON.stringify(dataToCache));
+            setCachedData(dataToCache);
+            
+            setIsLoading(false);
+            return;
           }
-          groups[date].push(alert);
-          return groups;
-        }, {});
-        
-        const groupedArray = Object.entries(groupedByDate)
-          .map(([date, alerts]) => ({ date, alerts }))
-          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-        
-        setAlertsData(centerAlerts);
-        setArchivedAlerts(groupedArray);
-        setIsLoading(false);
-        
-      } catch (error) {
-        console.error("Error loading preferences:", error);
+        } catch (error) {
+          console.error("Error parsing localStorage:", error);
+        }
+      }
+      
+      // Default fallback
+      const watchlistSymbols = userWatchlist.map(item => item.base_symbol);
+      
+      if (watchlistSymbols.length === 0) {
         setAlertsData([]);
         setArchivedAlerts([]);
         setIsLoading(false);
+        return;
       }
-    };
-    
-    loadUserPreferences();
-  }, []);
+      
+      const watchlistOnlyAlerts = hardcodedAlerts.filter(alert => 
+        watchlistSymbols.includes(alert.stock)
+      );
+      
+      // Split into center and archive
+      const { centerAlerts: center, archiveAlerts } = splitAlertsIntoCenterAndArchive(watchlistOnlyAlerts);
+      centerAlerts = center;
+      
+      // Group archive alerts by date
+      const groupedByDate = archiveAlerts.reduce((groups: any, alert) => {
+        const date = alert.date;
+        if (!groups[date]) {
+          groups[date] = [];
+        }
+        groups[date].push(alert);
+        return groups;
+      }, {});
+      
+      groupedArray = Object.entries(groupedByDate)
+        .map(([date, alerts]) => ({ date, alerts }))
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      
+      setAlertsData(centerAlerts);
+      setArchivedAlerts(groupedArray);
+      
+      // ✅ SAVE TO CACHE
+      const dataToCache = {
+        watchlist: userWatchlist,
+        centerAlerts: centerAlerts,
+        archivedGroups: groupedArray,
+        allToday: watchlistOnlyAlerts,
+        strategies: indiaStrategies,
+        timestamp: Date.now()
+      };
+      
+      sessionStorage.setItem('india_alerts_cache', JSON.stringify(dataToCache));
+      setCachedData(dataToCache);
+      
+      setIsLoading(false);
+      
+    } catch (error) {
+      console.error("Error loading preferences:", error);
+      setAlertsData([]);
+      setArchivedAlerts([]);
+      setIsLoading(false);
+    }
+  };
+  
+  loadUserPreferences();
+}, []); // Add cachedData to dependency array
+
+
+
 
   // Handle market redirect
   const handleMarketRedirect = () => {
@@ -1119,7 +1244,7 @@ const splitAlertsIntoCenterAndArchive = (allAlerts: any[]) => {
             strategy: strategy,
             action: "add"
           });
-          console.log(`✅ Strategy "${strategy}" added to backend`);
+          
         } catch (error: any) {
           console.error(`❌ Failed to add strategy "${strategy}":`, error.response?.data || error.message);
         }
@@ -1141,7 +1266,7 @@ const splitAlertsIntoCenterAndArchive = (allAlerts: any[]) => {
 
   // Handle remove strategy
   const handleRemoveStrategy = async (strategyToRemove: string) => {
-    console.log("=== REMOVE INDIA STRATEGY ===");
+    
     
     if (!confirm(`Are you sure you want to remove "${strategyToRemove}" alerts?`)) {
       return;
@@ -1950,7 +2075,7 @@ const extractUrlFromMarkdown = (markdown: string) => {
                       });
 
                       if (response.ok) {
-                        console.log("✅ Watchlist alert subscription registered");
+                        
                       } else {
                         console.error("Failed to register watchlist subscription");
                       }

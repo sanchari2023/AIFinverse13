@@ -23,6 +23,21 @@ import {
   Clock
 } from "lucide-react";
 
+
+// Add this right after your imports
+const preloadedData = (() => {
+  try {
+    const cached = sessionStorage.getItem('us_alerts_cache');
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (parsed.timestamp && (Date.now() - parsed.timestamp < 120000)) {
+        return parsed;
+      }
+    }
+  } catch (e) {}
+  return null;
+})();
+
 // Define interfaces
 interface Company {
   company_name: string;
@@ -35,14 +50,14 @@ interface WatchlistItem {
 }
 
 export default function Live_Alerts_US() {
-  const [selectedAlertTypes, setSelectedAlertTypes] = useState<string[]>([]);
+  const [selectedAlertTypes, setSelectedAlertTypes] = useState<string[]>(preloadedData?.strategies || []);
   const [chatOpen, setChatOpen] = useState(false);
   const [showAddStrategies, setShowAddStrategies] = useState(false);
   const [selectedNewStrategies, setSelectedNewStrategies] = useState<string[]>([]);
   const [isRemoving, setIsRemoving] = useState<string | null>(null);
   const [expandedAlertIndex, setExpandedAlertIndex] = useState<number | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
+  const [isLoading, setIsLoading] = useState(!preloadedData);
+  const [watchlist, setWatchlist] = useState<WatchlistItem[]>(preloadedData?.watchlist || []);
   const [searchAlertQuery, setSearchAlertQuery] = useState("");
   
   // User market and strategies from registration
@@ -60,12 +75,12 @@ export default function Live_Alerts_US() {
   const [, setLocation] = useLocation();
 
   // ADD THESE STATES for dynamic alerts
-  const [alertsData, setAlertsData] = useState<any[]>([]); // Combined alerts data (ONLY 10 LATEST TODAY'S ALERTS)
-  const [archivedAlerts, setArchivedAlerts] = useState<any[]>([]);
+ const [alertsData, setAlertsData] = useState<any[]>(preloadedData?.centerAlerts || []);
+ const [archivedAlerts, setArchivedAlerts] = useState<any[]>(preloadedData?.archivedGroups || []);
   const [expandedArchivedAlert, setExpandedArchivedAlert] = useState<number | null>(null);
   
   // NEW STATE to store ALL today's alerts
-  const [allTodayAlerts, setAllTodayAlerts] = useState<any[]>([]);
+  const [allTodayAlerts, setAllTodayAlerts] = useState<any[]>(preloadedData?.allToday || []);
   
   // NEW STATES for archived alerts pagination
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -78,6 +93,17 @@ export default function Live_Alerts_US() {
   
   // Add this state for filtered archive groups
   const [filteredArchiveGroups, setFilteredArchiveGroups] = useState<any[]>([]);
+
+  // Add this after your existing useState declarations
+const [cachedData, setCachedData] = useState(() => {
+  const saved = sessionStorage.getItem('us_alerts_cache');
+  if (saved) {
+    try {
+      return JSON.parse(saved); // Just return it, timestamp check happens in useEffect
+    } catch (e) {}
+  }
+  return null;
+});
 
   // 🔒 Registration check (simple & safe)
   const isRegistered = !!localStorage.getItem("userProfile");
@@ -176,12 +202,10 @@ const splitAlertsIntoCenterAndArchive = (allAlerts: any[]) => {
   ));
   const todayStr = todayUTC.toISOString().split('T')[0];
   
-  console.log("========== DEBUG SPLIT FUNCTION ==========");
-  console.log("1. Current UTC date:", todayStr);
-  console.log("2. Total alerts received:", allAlerts.length);
+ 
   
   // Log ALL alerts with their dates
-  console.log("3. All alerts with dates:");
+  
   allAlerts.forEach((alert, index) => {
     console.log(`   ${index + 1}. ${alert.stock} - date: ${alert.date} - timestamp: ${alert.timestamp}`);
   });
@@ -189,14 +213,13 @@ const splitAlertsIntoCenterAndArchive = (allAlerts: any[]) => {
   // Check what dates we have
   const dates = allAlerts.map(a => a.date);
   const uniqueDates = [...new Set(dates)];
-  console.log("4. Unique dates in alerts:", uniqueDates);
+  
   
   // Separate by date
   const todayAlerts = allAlerts.filter(alert => alert.date === todayStr);
   const olderAlerts = allAlerts.filter(alert => alert.date !== todayStr);
   
-  console.log("5. Today's alerts count:", todayAlerts.length);
-  console.log("6. Older alerts count:", olderAlerts.length);
+  
   
   // Check for duplicates within todayAlerts
   const seen = new Set();
@@ -209,7 +232,7 @@ const splitAlertsIntoCenterAndArchive = (allAlerts: any[]) => {
     seen.add(key);
   });
   
-  console.log("7. Duplicates found in todayAlerts:", duplicates.length);
+  
   if (duplicates.length > 0) {
     console.log("   Duplicate examples:", duplicates.slice(0, 3).map(d => ({
       stock: d.stock,
@@ -233,18 +256,16 @@ const splitAlertsIntoCenterAndArchive = (allAlerts: any[]) => {
       seenKeys.add(key);
       uniqueTodayAlerts.push(alert);
     } else {
-      console.log(`   🗑️ Removing duplicate: ${alert.stock} at ${alert.time}`);
+      
     }
   }
   
-  console.log("8. Unique today alerts after dedupe:", uniqueTodayAlerts.length);
+  
   
   const centerAlerts = uniqueTodayAlerts.slice(0, 10);
   const excessTodayAlerts = uniqueTodayAlerts.slice(10);
   
-  console.log("9. Center alerts (first 10):", centerAlerts.length);
-  console.log("10. Excess today alerts:", excessTodayAlerts.length);
-  console.log("==========================================");
+  
   
   return { 
     centerAlerts, 
@@ -263,7 +284,7 @@ const removeDuplicates = (alerts: any[]) => {
     const key = `${alert.stock}-${timestamp.getTime()}`;
     
     if (seen.has(key)) {
-      console.log("🔄 Duplicate found and removed:", alert.stock, alert.time);
+      
       return false;
     }
     seen.add(key);
@@ -393,7 +414,7 @@ const removeDuplicates = (alerts: any[]) => {
         
         if (userData.watchlist && userData.watchlist.US) {
           setWatchlist(userData.watchlist.US);
-          console.log("✅ US Watchlist refreshed from backend:", userData.watchlist.US.length, "items");
+          
           
           // Also refresh archive alerts with new watchlist
           const watchlistSymbols = userData.watchlist.US.map((item: WatchlistItem) => item.base_symbol);
@@ -720,7 +741,7 @@ const formatTriggerText = (trigger: string) => {
   const fetchMomentumAlerts = async () => {
     try {
       const momentumResponse = await api.get("/alerts/live/us");
-      console.log("✅ Momentum API called successfully");
+      
       
       if (momentumResponse.data && Array.isArray(momentumResponse.data.alerts)) {
         return momentumResponse.data.alerts.map((alert: any) => ({
@@ -754,7 +775,7 @@ const formatTriggerText = (trigger: string) => {
   const fetchArchivedAlerts = async () => {
     try {
       const response = await api.get("/alerts/history/us");
-      console.log("✅ Archived alerts API called successfully", response.data);
+      
       
       // Handle different possible response structures
       let alertsArray = [];
@@ -829,163 +850,101 @@ const formatTriggerText = (trigger: string) => {
   }, [archiveSearchQuery, archivedAlerts, watchlist]);
 
   // ============================================
-  // MAIN LOAD FUNCTION - Load watchlist and alerts
-  // ============================================
-  useEffect(() => {
-    const loadUserPreferences = async () => {
-      try {
-        console.log("=== LOADING US PREFERENCES ===");
+// MAIN LOAD FUNCTION - Load watchlist and alerts
+// ============================================
+useEffect(() => {
+  const loadUserPreferences = async () => {
+    try {
+      // 🔥 Check cache first
+      if (cachedData) {
         
-        const userProfile = localStorage.getItem("userProfile");
-        if (!userProfile) {
-          setIsLoading(false);
-          return;
-        }
-        
-        const profile = JSON.parse(userProfile);
-        const userEmail = profile.email || localStorage.getItem("userEmail");
-        
-        if (!userEmail) {
-          console.error("No user email found");
-          setIsLoading(false);
-          return;
-        }
-        
-        const savedMarket = localStorage.getItem('selectedMarket') || profile.selectedMarket || "US";
-        setUserMarket(savedMarket);
-        
-        const userId = profile.userId || profile.user_id || localStorage.getItem("userId");
-        
-        // Load watchlist first
-        let userWatchlist: WatchlistItem[] = [];
-        if (userId) {
-          try {
-            const response = await api.get(`/users/${userId}`);
-            const userData = response.data;
+        setWatchlist(cachedData.watchlist || []);
+        setAlertsData(cachedData.centerAlerts || []);
+        setArchivedAlerts(cachedData.archivedGroups || []);
+        setAllTodayAlerts(cachedData.allToday || []);
+        setSelectedAlertTypes(cachedData.strategies || []);
+        setIsLoading(false);
+        return; // ⭐ SKIP all API calls!
+      }
+      
+      
+      
+      const userProfile = localStorage.getItem("userProfile");
+      if (!userProfile) {
+        setIsLoading(false);
+        return;
+      }
+      
+      const profile = JSON.parse(userProfile);
+      const userEmail = profile.email || localStorage.getItem("userEmail");
+      
+      if (!userEmail) {
+        console.error("No user email found");
+        setIsLoading(false);
+        return;
+      }
+      
+      const savedMarket = localStorage.getItem('selectedMarket') || profile.selectedMarket || "US";
+      setUserMarket(savedMarket);
+      
+      const userId = profile.userId || profile.user_id || localStorage.getItem("userId");
+      
+      // Load watchlist first
+      let userWatchlist: WatchlistItem[] = [];
+      if (userId) {
+        try {
+          const response = await api.get(`/users/${userId}`);
+          const userData = response.data;
+          
+          if (userData.watchlist && userData.watchlist.US) {
+            userWatchlist = userData.watchlist.US;
+            setWatchlist(userWatchlist);
             
-            if (userData.watchlist && userData.watchlist.US) {
-              userWatchlist = userData.watchlist.US;
-              setWatchlist(userWatchlist);
-              console.log("✅ US watchlist loaded:", userWatchlist.length, "items");
-            }
-          } catch (error) {
-            console.error("Error loading watchlist:", error);
           }
+        } catch (error) {
+          console.error("Error loading watchlist:", error);
         }
-        
-        let usStrategies: string[] = [];
-        
-        if (userId) {
-          try {
-            const response = await api.get(`/users/${userId}`);
-            const userData = response.data;
-            
-            console.log("Backend user data:", userData);
+      }
+      
+      let usStrategies: string[] = [];
+      let centerAlerts: any[] = [];
+      let groupedArray: any[] = [];
+      let watchlistLiveAlerts: any[] = [];
+      
+      if (userId) {
+        try {
+          const response = await api.get(`/users/${userId}`);
+          const userData = response.data;
+          
+          
 
-            const hasUSAccess = userData?.market_preferences?.US?.is_active || 
-                                userData?.us_alerts?.is_active || 
-                                savedMarket === "US" || 
-                                savedMarket === "Both";
+          const hasUSAccess = userData?.market_preferences?.US?.is_active || 
+                              userData?.us_alerts?.is_active || 
+                              savedMarket === "US" || 
+                              savedMarket === "Both";
 
-            if (!hasUSAccess) {
-              setMarketMismatch(true);
-              setTimeout(() => {
-                setShowMarketRedirect(true);
-              }, 1000);
-              setIsLoading(false);
-              return;
-            }
-            
-            if (userData.us_alerts && userData.us_alerts.strategies) {
-              usStrategies = userData.us_alerts.strategies;
-              
-              if (Array.isArray(usStrategies)) {
-                console.log("US strategies from backend:", usStrategies);
-                
-                localStorage.setItem("alertPreferencesUS", JSON.stringify(usStrategies));
-                setSelectedAlertTypes(usStrategies);
-                
-                // Get watchlist symbols
-                const watchlistSymbols = userWatchlist.map(item => item.base_symbol);
-                
-                // If no watchlist stocks, show empty
-                if (watchlistSymbols.length === 0) {
-                  setAlertsData([]);
-                  setArchivedAlerts([]);
-                  setIsLoading(false);
-                  return;
-                }
-                
-                // Fetch ALL alerts
-                const momentumAlertsData = await fetchMomentumAlerts();
-                const archivedAlertsData = await fetchArchivedAlerts();
-                
-                console.log("📦 Raw live alerts data:", momentumAlertsData.length);
-                console.log("📦 Raw archived alerts data:", archivedAlertsData.length);
-                
-                // Filter only watchlist stocks
-                const watchlistLiveAlerts = momentumAlertsData.filter(alert => 
-                  watchlistSymbols.includes(alert.stock)
-                );
-                
-                const watchlistArchived = archivedAlertsData.filter(alert => 
-                  watchlistSymbols.includes(alert.stock)
-                );
-                
-                console.log("🔍 Filtered watchlist live alerts:", watchlistLiveAlerts.length);
-                console.log("🔍 Filtered watchlist archived alerts:", watchlistArchived.length);
-                
-                // Combine all alerts
-                const allAlerts = [...watchlistLiveAlerts, ...watchlistArchived];
-                
-                // Split into center and archive (USING UPDATED FUNCTION)
-                const { centerAlerts, archiveAlerts } = splitAlertsIntoCenterAndArchive(allAlerts);
-                
-                // Group archive alerts by date
-                const groupedByDate = archiveAlerts.reduce((groups: any, alert) => {
-                  const date = alert.date;
-                  if (!groups[date]) {
-                    groups[date] = [];
-                  }
-                  groups[date].push(alert);
-                  return groups;
-                }, {});
-                
-                // Convert to array and sort by date
-                const groupedArray = Object.entries(groupedByDate)
-                  .map(([date, alerts]) => ({ 
-                    date, 
-                    alerts: (alerts as any[]).sort((a, b) => 
-                      new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-                    )
-                  }))
-                  .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-                
-                setAlertsData(centerAlerts);
-                setArchivedAlerts(groupedArray);
-                setAllTodayAlerts(watchlistLiveAlerts); // Store all live alerts
-                
-                setIsLoading(false);
-                return;
-              }
-            }
-          } catch (backendError) {
-            console.log("Backend fetch failed:", backendError);
+          if (!hasUSAccess) {
+            setMarketMismatch(true);
+            setTimeout(() => {
+              setShowMarketRedirect(true);
+            }, 1000);
+            setIsLoading(false);
+            return;
           }
-        }
-        
-        // Fallback to localStorage if backend fails
-        const savedUSPrefs = localStorage.getItem("alertPreferencesUS");
-        
-        if (savedUSPrefs) {
-          try {
-            const parsed = JSON.parse(savedUSPrefs);
-            if (Array.isArray(parsed)) {
-              usStrategies = parsed;
-              setSelectedAlertTypes(parsed);
+          
+          if (userData.us_alerts && userData.us_alerts.strategies) {
+            usStrategies = userData.us_alerts.strategies;
+            
+            if (Array.isArray(usStrategies)) {
               
+              
+              localStorage.setItem("alertPreferencesUS", JSON.stringify(usStrategies));
+              setSelectedAlertTypes(usStrategies);
+              
+              // Get watchlist symbols
               const watchlistSymbols = userWatchlist.map(item => item.base_symbol);
               
+              // If no watchlist stocks, show empty
               if (watchlistSymbols.length === 0) {
                 setAlertsData([]);
                 setArchivedAlerts([]);
@@ -993,17 +952,28 @@ const formatTriggerText = (trigger: string) => {
                 return;
               }
               
-              // Use hardcoded alerts as fallback
-              const filteredAlerts = hardcodedAlerts.filter(alert => 
-                parsed.includes(alert.type)
-              );
+              // Fetch ALL alerts
+              const momentumAlertsData = await fetchMomentumAlerts();
+              const archivedAlertsData = await fetchArchivedAlerts();
               
-              const watchlistOnlyAlerts = filteredAlerts.filter(alert => 
+              
+              
+              // Filter only watchlist stocks
+              watchlistLiveAlerts = momentumAlertsData.filter(alert => 
                 watchlistSymbols.includes(alert.stock)
               );
               
+              const watchlistArchived = archivedAlertsData.filter(alert => 
+                watchlistSymbols.includes(alert.stock)
+              );
+              
+              
+              // Combine all alerts
+              const allAlerts = [...watchlistLiveAlerts, ...watchlistArchived];
+              
               // Split into center and archive (USING UPDATED FUNCTION)
-              const { centerAlerts, archiveAlerts } = splitAlertsIntoCenterAndArchive(watchlistOnlyAlerts);
+              const { centerAlerts: center, archiveAlerts } = splitAlertsIntoCenterAndArchive(allAlerts);
+              centerAlerts = center;
               
               // Group archive alerts by date
               const groupedByDate = archiveAlerts.reduce((groups: any, alert) => {
@@ -1015,66 +985,172 @@ const formatTriggerText = (trigger: string) => {
                 return groups;
               }, {});
               
-              const groupedArray = Object.entries(groupedByDate)
-                .map(([date, alerts]) => ({ date, alerts }))
+              // Convert to array and sort by date
+              groupedArray = Object.entries(groupedByDate)
+                .map(([date, alerts]) => ({ 
+                  date, 
+                  alerts: (alerts as any[]).sort((a, b) => 
+                    new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+                  )
+                }))
                 .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
               
               setAlertsData(centerAlerts);
               setArchivedAlerts(groupedArray);
+              setAllTodayAlerts(watchlistLiveAlerts);
+              
+              // ✅ SAVE TO CACHE - AFTER all data is ready
+              const dataToCache = {
+                watchlist: userWatchlist,
+                centerAlerts: centerAlerts,
+                archivedGroups: groupedArray,
+                allToday: watchlistLiveAlerts,
+                strategies: usStrategies,
+                timestamp: Date.now()
+              };
+              
+              sessionStorage.setItem('us_alerts_cache', JSON.stringify(dataToCache));
+              setCachedData(dataToCache);
               
               setIsLoading(false);
               return;
             }
-          } catch (error) {
-            console.error("Error parsing localStorage:", error);
           }
+        } catch (backendError) {
+          
         }
-        
-        // Default fallback
-        const watchlistSymbols = userWatchlist.map(item => item.base_symbol);
-        
-        if (watchlistSymbols.length === 0) {
-          setAlertsData([]);
-          setArchivedAlerts([]);
-          setIsLoading(false);
-          return;
-        }
-        
-        const watchlistOnlyAlerts = hardcodedAlerts.filter(alert => 
-          watchlistSymbols.includes(alert.stock)
-        );
-        
-        // Split into center and archive (USING UPDATED FUNCTION)
-        const { centerAlerts, archiveAlerts } = splitAlertsIntoCenterAndArchive(watchlistOnlyAlerts);
-        
-        // Group archive alerts by date
-        const groupedByDate = archiveAlerts.reduce((groups: any, alert) => {
-          const date = alert.date;
-          if (!groups[date]) {
-            groups[date] = [];
+      }
+      
+      // Fallback to localStorage if backend fails
+      const savedUSPrefs = localStorage.getItem("alertPreferencesUS");
+      
+      if (savedUSPrefs) {
+        try {
+          const parsed = JSON.parse(savedUSPrefs);
+          if (Array.isArray(parsed)) {
+            usStrategies = parsed;
+            setSelectedAlertTypes(parsed);
+            
+            const watchlistSymbols = userWatchlist.map(item => item.base_symbol);
+            
+            if (watchlistSymbols.length === 0) {
+              setAlertsData([]);
+              setArchivedAlerts([]);
+              setIsLoading(false);
+              return;
+            }
+            
+            // Use hardcoded alerts as fallback
+            const filteredAlerts = hardcodedAlerts.filter(alert => 
+              parsed.includes(alert.type)
+            );
+            
+            const watchlistOnlyAlerts = filteredAlerts.filter(alert => 
+              watchlistSymbols.includes(alert.stock)
+            );
+            
+            // Split into center and archive
+            const { centerAlerts: center, archiveAlerts } = splitAlertsIntoCenterAndArchive(watchlistOnlyAlerts);
+            centerAlerts = center;
+            
+            // Group archive alerts by date
+            const groupedByDate = archiveAlerts.reduce((groups: any, alert) => {
+              const date = alert.date;
+              if (!groups[date]) {
+                groups[date] = [];
+              }
+              groups[date].push(alert);
+              return groups;
+            }, {});
+            
+            groupedArray = Object.entries(groupedByDate)
+              .map(([date, alerts]) => ({ date, alerts }))
+              .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+            
+            setAlertsData(centerAlerts);
+            setArchivedAlerts(groupedArray);
+            
+            // ✅ SAVE TO CACHE
+            const dataToCache = {
+              watchlist: userWatchlist,
+              centerAlerts: centerAlerts,
+              archivedGroups: groupedArray,
+              allToday: watchlistOnlyAlerts,
+              strategies: usStrategies,
+              timestamp: Date.now()
+            };
+            
+            sessionStorage.setItem('us_alerts_cache', JSON.stringify(dataToCache));
+            setCachedData(dataToCache);
+            
+            setIsLoading(false);
+            return;
           }
-          groups[date].push(alert);
-          return groups;
-        }, {});
-        
-        const groupedArray = Object.entries(groupedByDate)
-          .map(([date, alerts]) => ({ date, alerts }))
-          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-        
-        setAlertsData(centerAlerts);
-        setArchivedAlerts(groupedArray);
-        setIsLoading(false);
-        
-      } catch (error) {
-        console.error("Error loading preferences:", error);
+        } catch (error) {
+          console.error("Error parsing localStorage:", error);
+        }
+      }
+      
+      // Default fallback
+      const watchlistSymbols = userWatchlist.map(item => item.base_symbol);
+      
+      if (watchlistSymbols.length === 0) {
         setAlertsData([]);
         setArchivedAlerts([]);
         setIsLoading(false);
+        return;
       }
-    };
-    
-    loadUserPreferences();
-  }, []);
+      
+      const watchlistOnlyAlerts = hardcodedAlerts.filter(alert => 
+        watchlistSymbols.includes(alert.stock)
+      );
+      
+      // Split into center and archive
+      const { centerAlerts: center, archiveAlerts } = splitAlertsIntoCenterAndArchive(watchlistOnlyAlerts);
+      centerAlerts = center;
+      
+      // Group archive alerts by date
+      const groupedByDate = archiveAlerts.reduce((groups: any, alert) => {
+        const date = alert.date;
+        if (!groups[date]) {
+          groups[date] = [];
+        }
+        groups[date].push(alert);
+        return groups;
+      }, {});
+      
+      groupedArray = Object.entries(groupedByDate)
+        .map(([date, alerts]) => ({ date, alerts }))
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      
+      setAlertsData(centerAlerts);
+      setArchivedAlerts(groupedArray);
+      
+      // ✅ SAVE TO CACHE
+      const dataToCache = {
+        watchlist: userWatchlist,
+        centerAlerts: centerAlerts,
+        archivedGroups: groupedArray,
+        allToday: watchlistOnlyAlerts,
+        strategies: usStrategies,
+        timestamp: Date.now()
+      };
+      
+      sessionStorage.setItem('us_alerts_cache', JSON.stringify(dataToCache));
+      setCachedData(dataToCache);
+      
+      setIsLoading(false);
+      
+    } catch (error) {
+      console.error("Error loading preferences:", error);
+      setAlertsData([]);
+      setArchivedAlerts([]);
+      setIsLoading(false);
+    }
+  };
+  
+  loadUserPreferences();
+}, []); // Add cachedData to dependency array
 
   // Handle market redirect
   const handleMarketRedirect = () => {
@@ -1136,7 +1212,7 @@ const formatTriggerText = (trigger: string) => {
             strategy: strategy,
             action: "add"
           });
-          console.log(`✅ Strategy "${strategy}" added to backend`);
+          
         } catch (error: any) {
           console.error(`❌ Failed to add strategy "${strategy}":`, error.response?.data || error.message);
         }
@@ -1158,7 +1234,7 @@ const formatTriggerText = (trigger: string) => {
 
   // Handle remove strategy
   const handleRemoveStrategy = async (strategyToRemove: string) => {
-    console.log("=== REMOVE US STRATEGY ===");
+    
     
     if (!confirm(`Are you sure you want to remove "${strategyToRemove}" alerts?`)) {
       return;
@@ -1221,16 +1297,18 @@ const formatTriggerText = (trigger: string) => {
     setArchiveSearchQuery("");
   };
 
-  // Format date for archive display (Thu 12/2/2026)
-  const formatArchiveDate = (dateString: string) => {
+  // Format date for archive display (Thu 5/3/2026) - DD/MM/YYYY
+const formatArchiveDate = (dateString: string) => {
   const date = new Date(dateString + 'T00:00:00Z'); // Parse as UTC
-  return date.toLocaleDateString('en-US', { 
+  const weekday = date.toLocaleDateString('en-US', { 
     timeZone: 'UTC',
-    weekday: 'short', 
-    month: 'numeric', 
-    day: 'numeric', 
-    year: 'numeric' 
+    weekday: 'short' 
   });
+  const day = date.getUTCDate();
+  const month = date.getUTCMonth() + 1; // Months are 0-indexed
+  const year = date.getUTCFullYear();
+  
+  return `${weekday} ${day}/${month}/${year}`;
 };
 
   // Handle clicking on archive date
@@ -1924,7 +2002,7 @@ const handleViewAllArchived = () => {
                       });
 
                       if (response.ok) {
-                        console.log("✅ Watchlist alert subscription registered");
+                        
                       } else {
                         console.error("Failed to register watchlist subscription");
                       }
