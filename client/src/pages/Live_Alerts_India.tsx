@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from "react";
 import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
@@ -118,108 +119,118 @@ const [cachedData, setCachedData] = useState(() => {
   const [patSearch, setPatSearch] = useState('');
   const [activePanel, setActivePanel] = useState<string | null>(null);
 
+
+
+  // Add this helper function to get the correct AlertBot URL
+const getAlertBotUrl = () => {
+  // In production, use the EC2 instance directly
+  if (import.meta.env.PROD) {
+    return 'http://34.226.94.121:5000';
+  }
+  // In development, use the proxy
+  return '/alertbot';
+};
    
     // Fetch AlertBot data
      
   const fetchAlertBotData = async () => {
-    try {
-      const response = await fetch("/alertbot/api/alerts");
-      if (response.ok) {
-        const data = await response.json();
-        setAlertBotData(data);
-        return data;
-      }
-    } catch (error) {
-      console.error("Failed to fetch alert data:", error);
+  try {
+    const alertBotUrl = getAlertBotUrl();
+    const response = await fetch(`${alertBotUrl}/api/alerts`);
+    if (response.ok) {
+      const data = await response.json();
+      setAlertBotData(data);
+      return data;
     }
-    return null;
-  };
+  } catch (error) {
+    console.error("Failed to fetch alert data:", error);
+  }
+  return null;
+};
 
  
   // Send initial greeting when chat opens
-    // Send initial greeting when chat opens
-  useEffect(() => {
-    if (chatOpen && chatMessages.length === 0) {
-      // Send a trigger message to backend to get the greeting
-      const getInitialGreeting = async () => {
-        setIsChatLoading(true);
-        try {
-          const response = await fetch("/alertbot/api/chat", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ 
-              messages: [{ role: "user", content: "Hello" }] 
-            })
-          });
-          
-          if (response.ok) {
-            const data = await response.json();
-            const greeting = data.reply || "Hello! How can I help you?";
-            setChatMessages([{ role: "assistant", content: greeting }]);
-          } else {
-            // Fallback if backend fails
-            setChatMessages([{ 
-              role: "assistant", 
-              content: "👋 Hello! I'm AlertBot. Ask me about stocks, alerts, or market data." 
-            }]);
-          }
-        } catch (error) {
-          console.error("Failed to get greeting:", error);
+   useEffect(() => {
+  if (chatOpen && chatMessages.length === 0) {
+    const getInitialGreeting = async () => {
+      setIsChatLoading(true);
+      try {
+        const alertBotUrl = getAlertBotUrl();
+        const response = await fetch(`${alertBotUrl}/api/chat`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ 
+            messages: [{ role: "user", content: "Hello" }] 
+          })
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          const greeting = data.reply || "Hello! How can I help you?";
+          setChatMessages([{ role: "assistant", content: greeting }]);
+        } else {
           setChatMessages([{ 
             role: "assistant", 
             content: "👋 Hello! I'm AlertBot. Ask me about stocks, alerts, or market data." 
           }]);
-        } finally {
-          setIsChatLoading(false);
         }
-      };
-      
-      getInitialGreeting();
-    }
-  }, [chatOpen]);
+      } catch (error) {
+        console.error("Failed to get greeting:", error);
+        setChatMessages([{ 
+          role: "assistant", 
+          content: "👋 Hello! I'm AlertBot. Ask me about stocks, alerts, or market data." 
+        }]);
+      } finally {
+        setIsChatLoading(false);
+      }
+    };
+    
+    getInitialGreeting();
+  }
+}, [chatOpen]);
   
 
     // Send message to backend
-     // Send message to backend - UPDATE URL
-  const sendChatMessage = async () => {
-    if (!chatInput.trim() || isChatLoading) return;
+     const sendChatMessage = async () => {
+  if (!chatInput.trim() || isChatLoading) return;
+  
+  const userMessage = { role: "user", content: chatInput };
+  setChatMessages(prev => [...prev, userMessage]);
+  setChatInput("");
+  setIsChatLoading(true);
+  
+  try {
+    const messagesToSend = [...chatMessages, userMessage];
+    const alertBotUrl = getAlertBotUrl();
+    const response = await fetch(`${alertBotUrl}/api/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages: messagesToSend })
+    });
     
-    const userMessage = { role: "user", content: chatInput };
-    setChatMessages(prev => [...prev, userMessage]);
-    setChatInput("");
-    setIsChatLoading(true);
-    
-    try {
-      const messagesToSend = [...chatMessages, userMessage];
-      const response = await fetch("/alertbot/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: messagesToSend })
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to get response");
-      }
-      
-      const data = await response.json();
-      const aiResponse = data.reply || "No response received.";
-      
-      setChatMessages(prev => [...prev, { role: "assistant", content: aiResponse }]);
-      
-      // Refresh data after chat
-      await fetchAlertBotData();
-      
-    } catch (error) {
-      console.error("Chat error:", error);
-      setChatMessages(prev => [...prev, { 
-        role: "assistant", 
-        content: "⚠️ Network error. Please try again." 
-      }]);
-    } finally {
-      setIsChatLoading(false);
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || "Failed to get response");
     }
-  };
+    
+    const data = await response.json();
+    const aiResponse = data.reply || "No response received.";
+    
+    setChatMessages(prev => [...prev, { role: "assistant", content: aiResponse }]);
+    
+    // Refresh data after chat
+    await fetchAlertBotData();
+    
+  } catch (error) {
+    console.error("Chat error:", error);
+    setChatMessages(prev => [...prev, { 
+      role: "assistant", 
+      content: "⚠️ Network error. Please try again." 
+    }]);
+  } finally {
+    setIsChatLoading(false);
+  }
+};
 
    const sendQuickQuestion = (question: string) => {
     setChatInput(question);
