@@ -35,7 +35,11 @@ import Telegram from "./pages/telegram";
 import Alerts from "./pages/Alerts";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
+
+
 import Portfolio from "./pages/Portfolio";
+import IndiaMarket from "./pages/IndiaMarket";
+import USMarket from "./pages/USMarket";
 
 // Wrappers
 import LiveAlertsWrapper_US from "./pages/LiveAlertsWrapper_US";
@@ -92,7 +96,11 @@ function Router() {
     <ProtectedRoute component={AdminEditor} />
   )}
 />
-<Route path="/portfolio/:marketType?" component={Portfolio} />
+{/* PORTFOLIO PAGES */}
+      <Route path="/portfolio" component={Portfolio} />
+      <Route path="/india" component={IndiaMarket} />
+      <Route path="/us" component={USMarket} />
+
 
 
 

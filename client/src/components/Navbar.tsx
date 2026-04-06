@@ -160,17 +160,12 @@ if (["/live-alerts-india", "/live-alerts-us"].includes(path)) {
       path: "/live-alerts-us", 
       isPremium: true 
     },
-    
     { 
       label: "Market Insights", 
       path: "/newsletter", 
       isPremium: false 
     },
-    { 
-      label: "Contact us", 
-      path: "/contact", 
-      isPremium: false 
-    },
+   
     { 
       label: "About us", 
       path: "/about", 

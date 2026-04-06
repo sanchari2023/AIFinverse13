@@ -394,16 +394,25 @@ export default function About() {
 
      
       {/* ================= FOOTER ================= */}
-      <footer className="bg-slate-900 border-t border-slate-800 mt-auto">
-        <div className="max-w-7xl mx-auto px-4 py-3 text-center">
-          <p className="text-sm text-slate-400">
-            © 2025 All rights reserved to AIFinverse.{" | "}
-            <a href="/privacy-policy" className="text-cyan-400 hover:text-cyan-300 hover:underline ml-1">
-              Privacy Policy
-            </a>
-          </p>
-        </div>
-      </footer>
+       <footer className="mt-20 py-4 bg-slate-1000/50 text-center text-sm text-slate-500">
+  <div className="max-w-7xl mx-auto px-4 py-3 text-center">
+    <div className="flex justify-center items-center space-x-4 mb-2">
+      <button
+        onClick={() => setLocation('/contact')}
+        className="text-cyan-400 hover:text-cyan-300 hover:underline transition-colors text-sm"
+      >
+        Contact Us
+      </button>
+      <span className="text-slate-600">|</span>
+      <a href="/privacy-policy" className="text-cyan-400 hover:text-cyan-300 hover:underline transition-colors text-sm">
+        Privacy Policy
+      </a>
+    </div>
+    <p className="text-sm text-slate-400">
+      © 2025 All rights reserved to AIFinverse.
+    </p>
+  </div>
+</footer>
     </div>
     </PageWrapper>
   );

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useLocation } from "wouter";
 import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import PageWrapper from "@/components/PageWrapper";
@@ -63,6 +64,7 @@ export default function Newsletter() {
   const [hoveredVideo, setHoveredVideo] = useState(false);
   const [isSharedView, setIsSharedView] = useState(false);
   const [isSubscribing, setIsSubscribing] = useState(false);
+  const [, setLocation] = useLocation();
 
   const [showEmptyMessage, setShowEmptyMessage] = useState(false);
 
@@ -2256,23 +2258,38 @@ useEffect(() => {
           )}
 
           {/* ================= FOOTER ================= */}
-          <footer className="mt-20 py-4 bg-slate-1000/50 text-center text-sm text-slate-500">
-            <div className="max-w-7xl mx-auto px-2 py-1 text-center">
-              {/* DISCLAIMER */}
-              <div className="mb-4">
-                <p className="text-sm text-red-300 font-semibold">
-                  ⚠️ Disclaimer - Not Financial Advice, Do Your Own Research
-                </p>
-              </div>
-              
-              <p className="text-sm text-slate-400">
-                © 2025 All rights reserved to AIFinverse.{" | "}
-                <a href="/privacy-policy" className="text-cyan-400 hover:text-cyan-300 hover:underline ml-1">
-                  Privacy Policy
-                </a>
-              </p>
-            </div>
-          </footer>
+           {/* FOOTER */}
+<footer className="mt-20 py-4 bg-slate-1000/50 text-center text-sm text-slate-500">
+  <div className="max-w-7xl mx-auto px-4">
+    <div className="mb-4">
+      <p className="text-sm text-red-300 font-semibold">
+        ⚠️ Disclaimer - Not Financial Advice, Do Your Own Research
+      </p>
+    </div>
+    
+    <div className="flex justify-center items-center space-x-6 mb-4">
+      <button
+        onClick={() => setLocation('/contact')}
+        className="text-cyan-400 hover:text-cyan-300 hover:underline transition-colors flex items-center gap-2"
+      >
+        <i className="fas fa-envelope"></i>
+        Contact Us
+      </button>
+      <span className="text-slate-600">|</span>
+      <a
+        href="/privacy-policy"
+        className="text-cyan-400 hover:text-cyan-300 hover:underline transition-colors flex items-center gap-2"
+      >
+        <i className="fas fa-shield-alt"></i>
+        Privacy Policy
+      </a>
+    </div>
+    
+    <p className="text-sm text-slate-400">
+      © 2025 All rights reserved to AIFinverse.
+    </p>
+  </div>
+</footer>
         </main>
       </div>
     </PageWrapper>

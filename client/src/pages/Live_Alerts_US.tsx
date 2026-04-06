@@ -485,7 +485,11 @@ const removeDuplicates = (alerts: any[]) => {
       
       // 1. Fetch all alerts (live + archived)
       const momentumAlertsData = await fetchMomentumAlerts();
+      console.log("MOMENTUM API RESPONSE:", momentumAlertsData);
+console.log("MOMENTUM ALERTS COUNT:", momentumAlertsData.length);
       const archivedAlertsData = await fetchArchivedAlerts();
+      console.log("ARCHIVED API RESPONSE:", archivedAlertsData);
+console.log("ARCHIVED ALERTS COUNT:", archivedAlertsData.length);
       
       // 2. Filter only watchlist stocks
       const watchlistLiveAlerts = momentumAlertsData.filter(alert => 
@@ -2397,181 +2401,200 @@ const handleViewAllArchived = () => {
         <img
           src="/images/bot.png"
           alt="AI Assistant"
-          className="w-30 h-30 object-contain drop-shadow-lg"
+          className="w-50 h-50 object-contain drop-shadow-lg"
         />
       </button>
 
-      {/* CHAT BOX */}
-            {/* CHAT BOX */}
-      {chatOpen && (
-        <div className="fixed bottom-24 right-6 w-80 bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl shadow-2xl z-50 border border-cyan-500/20 flex flex-col overflow-hidden" style={{ height: '500px' }}>
-          <div className="flex items-center justify-between p-4 border-b border-slate-700 bg-slate-800/50">
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-full flex items-center justify-center">
-  <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-  </svg>
-</div>
-                <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-              </div>
-              <div>
-                <h3 className="font-bold text-white">AryaBot</h3>
-                <p className="text-xs text-cyan-400">AIFinverse</p>
-              </div>
+      {/* FULL SCREEN CHAT MODAL */}
+{chatOpen && (
+  <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/90 backdrop-blur-md">
+    <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl shadow-2xl border border-cyan-500/20 flex flex-col overflow-hidden w-full max-w-5xl h-[90vh] max-h-[90vh]">
+      {/* Chat Header */}
+      <div className="flex items-center justify-between p-4 border-b border-slate-700 bg-slate-800/50">
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <div className="w-12 h-12 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-full flex items-center justify-center">
+              <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+              </svg>
             </div>
-            <button 
-              onClick={() => setChatOpen(false)} 
-              className="text-slate-400 hover:text-white transition p-1"
-            >
-              <X className="w-5 h-5" />
-            </button>
+            <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
           </div>
+          <div>
+            <h3 className="font-bold text-white text-lg">AryaBot</h3>
+            <p className="text-xs text-cyan-400">AIFinverse</p>
+          </div>
+        </div>
+        <button 
+          onClick={() => setChatOpen(false)} 
+          className="text-slate-400 hover:text-white transition p-2 hover:bg-slate-700 rounded-full"
+        >
+          <X className="w-6 h-6" />
+        </button>
+      </div>
 
-          {/* Chat Messages Area */}
-          <div 
-            ref={chatMessagesRef}
-            className="flex-1 overflow-y-auto p-4 space-y-3"
-            style={{ height: 'calc(100% - 120px)' }}
+      {/* Chat Messages Area */}
+      <div 
+        ref={chatMessagesRef}
+        className="flex-1 overflow-y-auto p-6 space-y-4"
+      >
+        {chatMessages.map((msg, idx) => (
+          <div
+            key={idx}
+            className={`flex items-start gap-3 ${msg.role === 'user' ? 'justify-end' : ''}`}
           >
-            {chatMessages.map((msg, idx) => (
-              <div
-                key={idx}
-                className={`flex items-start gap-2 ${msg.role === 'user' ? 'justify-end' : ''}`}
-              >
-                {msg.role === 'assistant' && (
-  <div className="w-6 h-6 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
-    <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-    </svg>
-  </div>
-)}
-                <div
-                  className={`rounded-xl px-3 py-2 max-w-[85%] text-sm ${
-                    msg.role === 'user'
-                      ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white'
-                      : 'bg-slate-700/50 text-slate-200'
-                  }`}
-                >
-                  {msg.role === 'assistant' ? (
-                    <div 
-                      className="prose prose-invert prose-sm max-w-none"
-                      dangerouslySetInnerHTML={{ 
-                        __html: msg.content
-                          .replace(/\*\*(.*?)\*\*/g, '<strong class="text-cyan-400">$1</strong>')
-                          .replace(/`([^`]+)`/g, '<code class="bg-black/30 px-1 rounded text-xs">$1</code>')
-                          .replace(/\n/g, '<br/>')
-                          .replace(/•/g, '<span class="text-cyan-400 mr-1">•</span>')
-                      }}
-                    />
-                  ) : (
-                    <div className="whitespace-pre-wrap">{msg.content}</div>
-                  )}
-                </div>
-               {msg.role === 'user' && (
-  <div className="w-6 h-6 bg-slate-700 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
-    <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-    </svg>
-  </div>
-)}
+            {msg.role === 'assistant' && (
+              <div className="w-8 h-8 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                </svg>
               </div>
-            ))}
-            {isChatLoading && (
-              <div className="flex items-start gap-2">
-                <div className="w-6 h-6 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
-                  <span className="text-white text-xs font-bold">AI</span>
-                </div>
-                <div className="bg-slate-700/50 rounded-xl px-3 py-2">
-                  <div className="flex gap-1">
-                    <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce"></div>
-                    <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                    <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                  </div>
-                </div>
+            )}
+            <div
+              className={`rounded-xl px-4 py-3 max-w-[75%] text-base ${
+                msg.role === 'user'
+                  ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white'
+                  : 'bg-slate-700/50 text-slate-200'
+              }`}
+            >
+              {msg.role === 'assistant' ? (
+                <div 
+                  className="prose prose-invert prose-sm max-w-none"
+                  dangerouslySetInnerHTML={{ 
+                    __html: msg.content
+                      .replace(/\*\*(.*?)\*\*/g, '<strong class="text-cyan-400">$1</strong>')
+                      .replace(/`([^`]+)`/g, '<code class="bg-black/30 px-1 rounded text-xs">$1</code>')
+                      .replace(/\n/g, '<br/>')
+                      .replace(/•/g, '<span class="text-cyan-400 mr-1">•</span>')
+                  }}
+                />
+              ) : (
+                <div className="whitespace-pre-wrap">{msg.content}</div>
+              )}
+            </div>
+            {msg.role === 'user' && (
+              <div className="w-8 h-8 bg-slate-700 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
               </div>
             )}
           </div>
-
-          {/* Quick Actions */}
-          <div className="px-4 py-2 border-t border-slate-700 bg-slate-800/30">
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => sendQuickQuestion("Show latest LIFO alerts")}
-                className="text-xs bg-slate-700 text-slate-300 px-2 py-1 rounded-full hover:bg-cyan-500/20 hover:text-cyan-400 transition"
-              >
-                ⚡ LIFO
-              </button>
-              <button
-                onClick={() => sendQuickQuestion("Performance summary")}
-                className="text-xs bg-slate-700 text-slate-300 px-2 py-1 rounded-full hover:bg-cyan-500/20 hover:text-cyan-400 transition"
-              >
-                📊 Performance
-              </button>
-              <button
-                onClick={() => sendQuickQuestion("Show top fractal support levels")}
-                className="text-xs bg-slate-700 text-slate-300 px-2 py-1 rounded-full hover:bg-cyan-500/20 hover:text-cyan-400 transition"
-              >
-                🔷 Fractal S/R
-              </button>
-              <button
-                onClick={() => sendQuickQuestion("Where can I check earnings and TTM PE?")}
-                className="text-xs bg-slate-700 text-slate-300 px-2 py-1 rounded-full hover:bg-cyan-500/20 hover:text-cyan-400 transition"
-              >
-                💰 Earnings
-              </button>
+        ))}
+        {isChatLoading && (
+          <div className="flex items-start gap-3">
+            <div className="w-8 h-8 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+              <span className="text-white text-xs font-bold">AI</span>
+            </div>
+            <div className="bg-slate-700/50 rounded-xl px-4 py-3">
+              <div className="flex gap-1">
+                <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce"></div>
+                <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+              </div>
             </div>
           </div>
+        )}
+      </div>
 
-          {/* Input Area */}
-          <div className="p-4 border-t border-slate-700 bg-slate-800/30">
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter' && !isChatLoading && chatInput.trim()) {
-                    e.preventDefault();
-                    sendChatMessage();
-                  }
-                }}
-                placeholder="Ask about stocks, levels, alerts..."
-                className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:border-cyan-500 focus:outline-none"
-              />
-              <button
-                onClick={sendChatMessage}
-                disabled={isChatLoading || !chatInput.trim()}
-                className="bg-gradient-to-r from-cyan-500 to-blue-500 text-white px-3 py-2 rounded-lg hover:from-cyan-600 hover:to-blue-600 transition disabled:opacity-50"
-              >
-                {isChatLoading ? (
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                ) : (
-                  "Send"
-                )}
-              </button>
-            </div>
-          </div>
+      {/* Quick Actions */}
+      <div className="px-6 py-3 border-t border-slate-700 bg-slate-800/30">
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => sendQuickQuestion("Show latest LIFO alerts")}
+            className="text-sm bg-slate-700 text-slate-300 px-3 py-1.5 rounded-full hover:bg-cyan-500/20 hover:text-cyan-400 transition"
+          >
+            ⚡ LIFO
+          </button>
+          <button
+            onClick={() => sendQuickQuestion("Performance summary")}
+            className="text-sm bg-slate-700 text-slate-300 px-3 py-1.5 rounded-full hover:bg-cyan-500/20 hover:text-cyan-400 transition"
+          >
+            📊 Performance
+          </button>
+          <button
+            onClick={() => sendQuickQuestion("Show top fractal support levels")}
+            className="text-sm bg-slate-700 text-slate-300 px-3 py-1.5 rounded-full hover:bg-cyan-500/20 hover:text-cyan-400 transition"
+          >
+            🔷 Fractal S/R
+          </button>
+          <button
+            onClick={() => sendQuickQuestion("Where can I check earnings and TTM PE?")}
+            className="text-sm bg-slate-700 text-slate-300 px-3 py-1.5 rounded-full hover:bg-cyan-500/20 hover:text-cyan-400 transition"
+          >
+            💰 Earnings
+          </button>
         </div>
-      )}
+      </div>
+
+      {/* Input Area */}
+      <div className="p-6 border-t border-slate-700 bg-slate-800/30">
+        <div className="flex gap-3">
+          <input
+            type="text"
+            value={chatInput}
+            onChange={(e) => setChatInput(e.target.value)}
+            onKeyPress={(e) => {
+              if (e.key === 'Enter' && !isChatLoading && chatInput.trim()) {
+                e.preventDefault();
+                sendChatMessage();
+              }
+            }}
+            placeholder="Ask about stocks, levels, alerts..."
+            className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-base focus:border-cyan-500 focus:outline-none"
+          />
+          <button
+            onClick={sendChatMessage}
+            disabled={isChatLoading || !chatInput.trim()}
+            className="bg-gradient-to-r from-cyan-500 to-blue-500 text-white px-6 py-3 rounded-lg hover:from-cyan-600 hover:to-blue-600 transition disabled:opacity-50 font-medium"
+          >
+            {isChatLoading ? (
+              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+            ) : (
+              "Send"
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
+
+
 
       {/* FOOTER */}
-      <footer className="mt-20 py-4 bg-slate-1000/50 text-center text-sm text-slate-500">
-        <div className="max-w-7xl mx-auto px-2 py-1 text-center">
-          <div className="mb-4">
-            <p className="text-sm text-red-300 font-semibold">
-              ⚠️ Disclaimer - Not Financial Advice, Do Your Own Research
-            </p>
-          </div>
-          
-          <p className="text-sm text-slate-400">
-            © 2025 All rights reserved to AIFinverse.{" | "}
-            <a href="/privacy-policy" className="text-cyan-400 hover:text-cyan-300 hover:underline ml-1">
-              Privacy Policy
-            </a>
-          </p>
-        </div>
-      </footer>
+       {/* FOOTER */}
+<footer className="mt-20 py-4 bg-slate-1000/50 text-center text-sm text-slate-500">
+  <div className="max-w-7xl mx-auto px-4">
+    <div className="mb-4">
+      <p className="text-sm text-red-300 font-semibold">
+        ⚠️ Disclaimer - Not Financial Advice, Do Your Own Research
+      </p>
+    </div>
+    
+    <div className="flex justify-center items-center space-x-6 mb-4">
+      <button
+        onClick={() => setLocation('/contact')}
+        className="text-cyan-400 hover:text-cyan-300 hover:underline transition-colors flex items-center gap-2"
+      >
+        <i className="fas fa-envelope"></i>
+        Contact Us
+      </button>
+      <span className="text-slate-600">|</span>
+      <a
+        href="/privacy-policy"
+        className="text-cyan-400 hover:text-cyan-300 hover:underline transition-colors flex items-center gap-2"
+      >
+        <i className="fas fa-shield-alt"></i>
+        Privacy Policy
+      </a>
+    </div>
+    
+    <p className="text-sm text-slate-400">
+      © 2025 All rights reserved to AIFinverse.
+    </p>
+  </div>
+</footer>
 
       <style>{`
         @keyframes float {
