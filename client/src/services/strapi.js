@@ -1,5 +1,6 @@
 // src/services/strapi.js
-const STRAPI_URL = "http://localhost:1337";
+// src/services/strapi.js
+const STRAPI_URL = import.meta.env.VITE_STRAPI_URL || "http://3.211.146.27:1337";
 
 export function formatArticle(strapiArticle) {
   const attributes = strapiArticle;
