@@ -51,7 +51,7 @@ export default defineConfig(({ mode }) => {
         },
       // ADD THIS NEW PROXY FOR ALERTBOT
         '/alertbot': {
-          target: 'http://34.226.94.121:5000',
+          target: 'http://3.211.146.27:5000',
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/alertbot/, ''),
           secure: false,
